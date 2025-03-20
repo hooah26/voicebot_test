@@ -26,21 +26,11 @@ def speech_to_text(speech):
     
     return transcription.text
 
+
 def get_weather(latitude, longitude):
     response = requests.get(f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m")
     data = response.json()
     return data['current']['temperature_2m']
-
-def get_exchange_rate(target_currency):
-    return "1450원"  # 실제 환율 API 연동 필요
-
-
-def get_weather(location):
-    response = requests.get(f"https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current_weather=true")
-    if response.status_code == 200:
-        data = response.json()
-        return f"현재 {location}의 온도는 {data['current_weather']['temperature']}°C 입니다."
-    return "날씨 정보를 가져오는데 실패했습니다."
 
 
 def get_exchange_rate():
@@ -71,7 +61,7 @@ def generate_chat_response(messages):
             if name == "get_weather":
                 result = get_weather(args["latitude"], args["longitude"])
             elif name == "get_exchange_rate":
-                result = get_exchange_rate(args["target_currency"])
+                result = get_exchange_rate()
 
             messages.append({
                 "role": "tool",
