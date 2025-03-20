@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from audiorecorder import audiorecorder
 from datetime import datetime
 import base64
+import json
+import requests
 
 load_dotenv()
 
@@ -24,11 +26,49 @@ def speech_to_text(speech):
     
     return transcription.text
 
+def get_weather(latitude, longitude):
+    response = requests.get(f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m")
+    data = response.json()
+    return data['current']['temperature_2m']
+
+def get_exchange_rate(target_currency):
+    return "1450원"  # 실제 환율 API 연동 필요
+
 def generate_chat_response(messages):
     response = client.chat.completions.create(
-        model="gpt-4o-mini", 
-        messages=messages
+        model="gpt-4o",
+        messages=messages,
+        tools=tools
     )
+    
+    if response.choices[0].message.tool_calls:
+        messages.append({
+            "role": "assistant",
+            "tool_calls": response.choices[0].message.tool_calls
+        })
+
+        for tool_call in response.choices[0].message.tool_calls:
+            name = tool_call.function.name
+            args = json.loads(tool_call.function.arguments)
+
+            if name == "get_weather":
+                result = get_weather(args["latitude"], args["longitude"])
+            elif name == "get_exchange_rate":
+                result = get_exchange_rate(args["target_currency"])
+
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": str(result)
+            })
+
+        final_response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            tools=tools
+        )
+        return final_response.choices[0].message.content
+    
     return response.choices[0].message.content
 
 def text_to_speech(text):
@@ -55,6 +95,36 @@ def text_to_speech(text):
 
     # 파일 삭제
     os.remove(filename)
+
+# tools 정의
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Get current temperature for provided coordinates in celsius.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "latitude": {"type": "number"},
+                "longitude": {"type": "number"}
+            },
+            "required": ["latitude", "longitude"],
+        }
+    }
+}, {
+    "type": "function",
+    "function": {
+        "name": "get_exchange_rate",
+        "description": "Get current exchange rate for provided currency.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "target_currency": {"type": "string"}
+            },
+            "required": ["target_currency"],
+        }
+    }
+}]
 
 # 메인 함수 정의
 def main():
@@ -130,7 +200,7 @@ def main():
                     st.write(f'<div style="display:flex;align-items:center;justify-content:flex-end;"><div style="background-color:lightgray;border-radius:12px;padding:8px 12px;margin-left:8px;">{message}</div><div style="font-size:0.8rem;color:gray;">{time}</div></div>', 
                              unsafe_allow_html=True)
                     st.write("")
-
+            
             text_to_speech(response_content)
 
 # 스크립트가 직접 실행될 때 메인 함수 호출
