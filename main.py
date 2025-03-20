@@ -34,6 +34,23 @@ def get_weather(latitude, longitude):
 def get_exchange_rate(target_currency):
     return "1450원"  # 실제 환율 API 연동 필요
 
+
+def get_weather(location):
+    response = requests.get(f"https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current_weather=true")
+    if response.status_code == 200:
+        data = response.json()
+        return f"현재 {location}의 온도는 {data['current_weather']['temperature']}°C 입니다."
+    return "날씨 정보를 가져오는데 실패했습니다."
+
+
+def get_exchange_rate():
+    response = requests.get("https://api.exchangerate-api.com/v4/latest/USD")
+    if response.status_code == 200:
+        data = response.json()
+        rate = data['rates'].get('KRW', '알 수 없음')
+        return f"현재 원-달러 환율은 1달러당 {rate}원 입니다."
+    return "환율 정보를 가져오는데 실패했습니다."
+
 def generate_chat_response(messages):
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -115,14 +132,13 @@ tools = [{
     "type": "function",
     "function": {
         "name": "get_exchange_rate",
-        "description": "Get current exchange rate for provided currency.",
+        "description": "현재 원-달러 환율을 조회합니다.",
         "parameters": {
             "type": "object",
-            "properties": {
-                "target_currency": {"type": "string"}
-            },
-            "required": ["target_currency"],
-        }
+            "properties": {},
+            "additionalProperties": False
+        },
+        "strict": True
     }
 }]
 
